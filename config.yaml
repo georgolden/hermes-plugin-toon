@@ -1,0 +1,9 @@
+toon:
+  # Minimum result size (chars) before conversion is considered.
+  min_chars: 200
+  # Minimum token-proxy savings (fraction of chars) required to convert.
+  min_savings: 0.12
+  # Tools that must never be converted (exact tool names).
+  exclude_tools: []
+  # Master switch.
+  enabled: true

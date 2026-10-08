@@ -1,0 +1,15 @@
+name: toon
+version: 0.1.0
+description: "Auto-convert JSON tool results to TOON (Token-Oriented Object Notation) to save context tokens. Lossless, fail-open, zero network."
+author: georgolden
+license: MIT
+homepage: https://github.com/georgolden/hermes-plugin-toon
+tags: [toon, token-optimization, context, tool-results, plugin]
+requires_hermes: ">=0.21.1"
+python_dependencies:
+  - "toon-format>=1.0.0,<2"
+provides_hooks:
+  - transform_tool_result
+provides_tools:
+  - toon_encode
+  - toon_decode
