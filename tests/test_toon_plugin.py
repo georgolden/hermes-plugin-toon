@@ -62,6 +62,56 @@ def test_header_teaches_format():
     assert "TOON" in _HEADER and "table" in _HEADER
 
 
+# --- Envelope unwrapping ---------------------------------------------------
+# Real tool results often arrive as {"output": "<json string>", ...}
+# (terminal, execute_code). Whole-result conversion can't save anything on
+# these; the payload is the INNER JSON string.
+
+ENVELOPE = json.dumps({
+    "output": json.dumps([
+        {"name": f"sensor-{i:02d}", "value": i * 3, "active": i % 2 == 0,
+         "score": round(i * 1.5, 1)} for i in range(40)
+    ]),
+    "exit_code": 0,
+    "error": None,
+})
+
+
+def test_envelope_inner_json_converts():
+    out = _maybe_convert(ENVELOPE, min_chars=200, min_savings=0.12)
+    assert out is not None
+    assert len(out) < len(ENVELOPE)
+
+
+def test_envelope_result_stays_valid_json_with_wrapper_keys():
+    out = _maybe_convert(ENVELOPE, min_chars=200, min_savings=0.12)
+    data = json.loads(out)
+    assert data["exit_code"] == 0
+    assert data["output"].startswith(_HEADER)
+
+
+def test_envelope_roundtrip_is_lossless():
+    from toon_format import loads
+    out = _maybe_convert(ENVELOPE, min_chars=200, min_savings=0.12)
+    inner_toon = json.loads(out)["output"]
+    assert loads(inner_toon[len(_HEADER):]) == json.loads(json.loads(ENVELOPE)["output"])
+
+
+def test_envelope_with_prose_output_untouched():
+    prose = json.dumps({"output": "hello world, not json " * 30, "exit_code": 0})
+    assert _maybe_convert(prose, min_chars=200, min_savings=0.12) is None
+
+
+def test_envelope_with_low_savings_inner_untouched():
+    tiny = json.dumps({"output": json.dumps({"a": "x" * 300}), "exit_code": 0})
+    assert _maybe_convert(tiny, min_chars=200, min_savings=0.12) is None
+
+
+def test_envelope_never_double_encodes():
+    once = _maybe_convert(ENVELOPE, min_chars=200, min_savings=0.12)
+    assert _maybe_convert(once, min_chars=200, min_savings=0.12) is None
+
+
 @pytest.mark.parametrize("min_chars", [0, 50])
 def test_low_min_chars_still_converts(min_chars):
     big = json.dumps([{"k": "v" * 30, "n": i} for i in range(10)])

@@ -21,6 +21,8 @@ users[20]{id,name,role,email,active}:
 
 Everything else passes through untouched. Any parse/encode failure keeps the original result (fail-open). Conversion is **lossless** — `toon_format.loads` round-trips to identical data.
 
+**Envelope unwrapping (v0.2):** many tools wrap their payload — e.g. terminal returns `{"output": "<json string>", "exit_code": 0}` — where whole-result TOON saves nothing. When the whole result doesn't meet the savings bar, the plugin falls back to converting JSON payloads inside string fields, keeping the JSON wrapper intact (wrapper keys like `exit_code` stay readable; the inner payload carries the legend header). Double-encoding is guarded at both levels.
+
 Also registers two tools for explicit use: `toon_encode` (JSON → TOON) and `toon_decode` (TOON → JSON).
 
 ## Why

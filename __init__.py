@@ -104,6 +104,26 @@ def _dumps(data) -> str:
     return dumps(data)
 
 
+def _convert_inner_strings(data: dict, min_chars: int, min_savings: float) -> dict | None:
+    """Envelope fallback: convert string fields that are themselves JSON payloads.
+
+    Tools like terminal wrap their payload as {"output": "<json string>", ...}
+    — whole-result TOON saves nothing on that shape, the payload is the inner
+    string. Returns a new dict with inner fields TOON-encoded (each carrying
+    the legend header), or None when nothing inner qualified.
+    """
+    out = dict(data)
+    changed = False
+    for key, val in data.items():
+        if not isinstance(val, str):
+            continue
+        inner = _maybe_convert(val, min_chars, min_savings)
+        if inner is not None:
+            out[key] = inner
+            changed = True
+    return out if changed else None
+
+
 def _maybe_convert(result: str, min_chars: int, min_savings: float) -> str | None:
     """Return TOON replacement for a JSON tool result, or None to keep original."""
     s = result.strip()
@@ -128,9 +148,17 @@ def _maybe_convert(result: str, min_chars: int, min_savings: float) -> str | Non
         logger.debug("toon: encode failed, keeping JSON", exc_info=True)
         return None
     savings = 1.0 - (len(toon) / len(s))
-    if savings < min_savings:
-        return None
-    return _HEADER + toon
+    if savings >= min_savings:
+        return _HEADER + toon
+    # Whole-result TOON didn't pay. Envelope fallback: if this is a dict with
+    # JSON payloads in string fields, convert those and keep the JSON wrapper.
+    if isinstance(data, dict):
+        unwrapped = _convert_inner_strings(data, min_chars, min_savings)
+        if unwrapped is not None:
+            envelope = json.dumps(unwrapped, ensure_ascii=False)
+            if 1.0 - (len(envelope) / len(s)) >= min_savings:
+                return envelope
+    return None
 
 
 def _on_transform(
